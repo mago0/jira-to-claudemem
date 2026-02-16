@@ -127,20 +127,16 @@ TICKETS=$(fetch_tickets)
 TICKET_COUNT=$(echo "$TICKETS" | jq 'length')
 log "Processing $TICKET_COUNT tickets..."
 
-# Check if a ticket already exists in claude-mem
+# Check if a ticket already exists in claude-mem (direct SQLite query for precision)
+CLAUDE_MEM_DB="$HOME/.claude-mem/claude-mem.db"
 ticket_exists() {
   local key="$1"
 
-  local result
-  result=$(curl -sf -G "$WORKER_URL/api/search" \
-    --data-urlencode "query=$key" \
-    --data-urlencode "limit=1" 2>/dev/null) || return 1
+  local count
+  count=$(sqlite3 "$CLAUDE_MEM_DB" \
+    "SELECT COUNT(*) FROM observations WHERE project = '$MEM_PROJECT' AND title LIKE '[${key}]%';" 2>/dev/null) || return 1
 
-  # The search API returns {content: [{text: "Found N result(s)..."}]} or "No results found"
-  local text
-  text=$(echo "$result" | jq -r '.content[0].text // ""' 2>/dev/null) || return 1
-
-  [[ "$text" == Found* ]]
+  [[ "$count" -gt 0 ]]
 }
 
 # Save a formatted ticket to claude-mem
