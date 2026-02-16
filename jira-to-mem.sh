@@ -49,12 +49,13 @@ if ! curl -sf "$WORKER_URL/api/health" > /dev/null 2>&1; then
 fi
 log "claude-mem worker is healthy"
 
-# Fetch tickets in pages of 100
+# Fetch tickets using cursor-based pagination (key < last_key)
+# The jira-cli --paginate offset is broken, so we use JQL key filtering instead
 fetch_tickets() {
-  local offset=0
   local page_size=100
   local total_fetched=0
   local all_tickets="[]"
+  local cursor=""
 
   log "Fetching up to $LIMIT tickets from $PROJECT..."
 
@@ -62,28 +63,37 @@ fetch_tickets() {
     local remaining=$((LIMIT - total_fetched))
     local fetch_count=$((remaining < page_size ? remaining : page_size))
 
-    vlog "Fetching page at offset $offset (limit $fetch_count)..."
+    vlog "Fetching page (cursor: ${cursor:-start}, limit $fetch_count)..."
 
     local page
-    page=$(jira issue list -p "$PROJECT" --raw --paginate "$offset:$fetch_count" \
-      --order-by updated --reverse 2>/dev/null) || {
-      log "WARNING: Failed to fetch page at offset $offset"
+    if [[ -n "$cursor" ]]; then
+      page=$(jira issue list -p "$PROJECT" --raw --paginate "0:$fetch_count" \
+        -q "key < $cursor" 2>/dev/null)
+    else
+      page=$(jira issue list -p "$PROJECT" --raw --paginate "0:$fetch_count" \
+        2>/dev/null)
+    fi
+
+    if [[ $? -ne 0 ]] || [[ -z "$page" ]]; then
+      log "WARNING: Failed to fetch page at cursor ${cursor:-start}"
       break
-    }
+    fi
 
     local count
     count=$(echo "$page" | jq 'length')
 
     if [[ "$count" -eq 0 ]]; then
-      vlog "No more tickets at offset $offset"
+      vlog "No more tickets"
       break
     fi
 
+    # Get the last key for cursor-based pagination
+    cursor=$(echo "$page" | jq -r '.[-1].key')
+
     all_tickets=$(echo "$all_tickets $page" | jq -s '.[0] + .[1]')
     total_fetched=$((total_fetched + count))
-    offset=$((offset + count))
 
-    vlog "Fetched $count tickets (total: $total_fetched)"
+    vlog "Fetched $count tickets (total: $total_fetched, next cursor: $cursor)"
   done
 
   log "Fetched $total_fetched tickets total"
