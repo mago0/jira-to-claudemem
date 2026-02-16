@@ -134,7 +134,6 @@ ticket_exists() {
   local result
   result=$(curl -sf -G "$WORKER_URL/api/search" \
     --data-urlencode "query=$key" \
-    --data-urlencode "project=$MEM_PROJECT" \
     --data-urlencode "limit=1" 2>/dev/null) || return 1
 
   # The search API returns {content: [{text: "Found N result(s)..."}]} or "No results found"
