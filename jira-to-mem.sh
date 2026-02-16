@@ -126,3 +126,80 @@ EOF
 TICKETS=$(fetch_tickets)
 TICKET_COUNT=$(echo "$TICKETS" | jq 'length')
 log "Processing $TICKET_COUNT tickets..."
+
+# Check if a ticket already exists in claude-mem
+ticket_exists() {
+  local key="$1"
+
+  local result
+  result=$(curl -sf -G "$WORKER_URL/api/search" \
+    --data-urlencode "query=$key" \
+    --data-urlencode "project=$MEM_PROJECT" \
+    --data-urlencode "limit=1" 2>/dev/null) || return 1
+
+  # The search API returns {content: [{text: "Found N result(s)..."}]} or "No results found"
+  local text
+  text=$(echo "$result" | jq -r '.content[0].text // ""' 2>/dev/null) || return 1
+
+  [[ "$text" == Found* ]]
+}
+
+# Save a formatted ticket to claude-mem
+save_ticket() {
+  local title="$1"
+  local text="$2"
+
+  local payload
+  payload=$(jq -n \
+    --arg text "$text" \
+    --arg title "$title" \
+    --arg project "$MEM_PROJECT" \
+    '{text: $text, title: $title, project: $project}')
+
+  local response
+  response=$(curl -sf -X POST "$WORKER_URL/api/memory/save" \
+    -H "Content-Type: application/json" \
+    -d "$payload" 2>/dev/null)
+
+  echo "$response" | jq -r '.id // empty'
+}
+
+# Process each ticket
+imported=0
+skipped=0
+failed=0
+
+for i in $(seq 0 $((TICKET_COUNT - 1))); do
+  ticket_json=$(echo "$TICKETS" | jq -c ".[$i]")
+  key=$(echo "$ticket_json" | jq -r '.key')
+  summary=$(echo "$ticket_json" | jq -r '.fields.summary // "No summary"')
+  title="[$key] $summary"
+
+  # Dedup check
+  if [[ "$FORCE" == false ]] && ticket_exists "$key"; then
+    vlog "SKIP $key (already exists)"
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  # Format and save
+  text=$(format_ticket "$ticket_json")
+  obs_id=$(save_ticket "$title" "$text")
+
+  if [[ -n "$obs_id" ]]; then
+    vlog "SAVED $key -> observation #$obs_id"
+    imported=$((imported + 1))
+  else
+    log "FAILED $key"
+    failed=$((failed + 1))
+  fi
+
+  # Progress indicator every 25 tickets
+  if (( (i + 1) % 25 == 0 )); then
+    log "Progress: $((i + 1))/$TICKET_COUNT processed..."
+  fi
+done
+
+# Summary
+echo "" >&2
+log "Done! Imported: $imported | Skipped: $skipped | Failed: $failed"
