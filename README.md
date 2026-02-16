@@ -1,4 +1,4 @@
-# jira-to-mem
+# jira-to-claudemem
 
 Ingest Jira tickets into [claude-mem](https://github.com/thedotmack/claude-mem) for searchable institutional memory in Claude Code sessions.
 
@@ -13,20 +13,34 @@ When you ask Claude "how did we solve X before?" or "what work have we done in a
 - [claude-mem](https://github.com/thedotmack/claude-mem) worker running (start a Claude Code session with claude-mem enabled)
 - `sqlite3`
 
+## Installation
+
+```bash
+# Install script to PATH
+cp jira-to-claudemem.sh ~/.local/bin/jira-to-claudemem
+chmod +x ~/.local/bin/jira-to-claudemem
+
+# Install Claude Code skill
+mkdir -p ~/.claude/skills/jira-to-claudemem
+cp .claude/skills/SKILL.md ~/.claude/skills/jira-to-claudemem/SKILL.md
+```
+
+After installation, use `/jira-to-claudemem` in any Claude Code session to import recent tickets.
+
 ## Usage
 
 ```bash
 # Import 500 most recent tickets from INFRA (default)
-./jira-to-mem.sh
+./jira-to-claudemem.sh
 
 # Import from a specific project
-./jira-to-mem.sh DEVOPS
+./jira-to-claudemem.sh DEVOPS
 
 # Import with options
-./jira-to-mem.sh INFRA -l 1000 -v
+./jira-to-claudemem.sh INFRA -l 1000 -v
 
 # Force reimport (skip dedup, overwrite existing)
-./jira-to-mem.sh INFRA --force
+./jira-to-claudemem.sh INFRA --force
 ```
 
 ### Options

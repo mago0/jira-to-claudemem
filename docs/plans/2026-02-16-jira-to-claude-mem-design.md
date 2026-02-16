@@ -54,7 +54,7 @@ Re-run the script anytime. Dedup ensures only new/missing tickets get imported. 
 
 ## Prerequisites
 
-- `jira` CLI (installed, configured for flocasts.atlassian.net)
+- `jira` CLI (installed, configured for your Atlassian instance)
 - `jq` 1.7+ (installed)
 - claude-mem worker running on port 37777
 

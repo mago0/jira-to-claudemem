@@ -4,16 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A single bash script (`jira-to-mem.sh`) that ingests Jira tickets into claude-mem for searchable institutional memory. ETL pipeline: jira CLI → jq → curl to claude-mem worker API.
+A single bash script (`jira-to-claudemem.sh`) that ingests Jira tickets into claude-mem for searchable institutional memory. ETL pipeline: jira CLI → jq → curl to claude-mem worker API.
 
 ## Running
 
 ```bash
 # Requires claude-mem worker running on port 37777 (start a Claude Code session with claude-mem enabled)
-./jira-to-mem.sh INFRA              # import 500 tickets from INFRA project
-./jira-to-mem.sh DEVOPS -l 200 -v   # different project, limit, verbose
-./jira-to-mem.sh --force             # reimport all, skip dedup
+./jira-to-claudemem.sh INFRA              # import 500 tickets from INFRA project
+./jira-to-claudemem.sh DEVOPS -l 200 -v   # different project, limit, verbose
+./jira-to-claudemem.sh --force             # reimport all, skip dedup
 ```
+
+See README.md for first-time installation to PATH and Claude Code skill setup.
 
 ## Dependencies
 
