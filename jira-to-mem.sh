@@ -11,9 +11,13 @@ VERBOSE=false
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [OPTIONS]
+Usage: $(basename "$0") [PROJECT] [OPTIONS]
 
 Ingest Jira tickets into claude-mem for searchable institutional memory.
+
+Examples:
+  $(basename "$0") INFRA
+  $(basename "$0") DEVOPS -l 200 -v
 
 Options:
   -p, --project PROJECT    Jira project key (default: INFRA)
@@ -34,9 +38,15 @@ while [[ $# -gt 0 ]]; do
     -f|--force)      FORCE=true; shift ;;
     -v|--verbose)    VERBOSE=true; shift ;;
     -h|--help)       usage ;;
-    *) echo "Unknown option: $1"; usage ;;
+    -*) echo "Unknown option: $1"; usage ;;
+    *) PROJECT="$1"; shift ;;
   esac
 done
+
+# Auto-derive mem project from Jira project if not explicitly set
+if [[ "$MEM_PROJECT" == "jira-infra" ]] && [[ "$PROJECT" != "INFRA" ]]; then
+  MEM_PROJECT="jira-$(echo "$PROJECT" | tr '[:upper:]' '[:lower:]')"
+fi
 
 log() { echo "[$(date +%H:%M:%S)] $*" >&2; }
 vlog() { [[ "$VERBOSE" == true ]] && log "$*" || true; }
